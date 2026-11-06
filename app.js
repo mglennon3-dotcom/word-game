@@ -9,12 +9,15 @@
   // ---------- persistence ----------
   const defaults = {
     mode: "daily",
-    stats: { played: 0, wins: 0, streak: 0, maxStreak: 0, dist: [0, 0, 0, 0, 0, 0] },
+    stats: newStats(),         // daily games only (streaks live here)
+    practiceStats: newStats(), // unlimited practice games
     games: {}, // keyed by game id -> { guesses, done, won }
   };
+  function newStats() { return { played: 0, wins: 0, streak: 0, maxStreak: 0, dist: [0, 0, 0, 0, 0, 0] }; }
   let store;
   try { store = { ...defaults, ...JSON.parse(localStorage.getItem(STORE_KEY) || "{}") }; }
   catch { store = structuredClone(defaults); }
+  const modeStats = () => (store.mode === "daily" ? store.stats : store.practiceStats);
   const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch {} };
 
   // ---------- game selection ----------
@@ -39,10 +42,16 @@
       answer = dailyWord(n);
     } else {
       if (!store.practice || store.games[store.practice.id]?.done) {
-        store.practice = { id: "practice-" + Date.now(), word: WORDS[Math.floor(Math.random() * WORDS.length)] };
+        // random word, but never today's daily word (no spoilers)
+        const today = dailyWord(dayNumber());
+        let word;
+        do word = WORDS[Math.floor(Math.random() * WORDS.length)]; while (word === today);
+        store.practice = { id: "practice-" + Date.now(), word };
       }
       gameId = store.practice.id;
       answer = store.practice.word;
+      // only the current practice game needs saving
+      for (const id of Object.keys(store.games)) if (id.startsWith("practice-") && id !== gameId) delete store.games[id];
     }
     const saved = store.games[gameId] || { guesses: [], done: false, won: false };
     store.games[gameId] = saved;
@@ -50,7 +59,6 @@
     done = saved.done;
     current = "";
     $("modeBtn").textContent = store.mode === "daily" ? "Daily" : "Practice";
-    $("newBtn").style.display = store.mode === "practice" ? "" : "none";
     save();
     renderBoard();
     renderKeyboard();
@@ -58,11 +66,39 @@
     updateHint();
   }
 
+  function nextDailyIn() {
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const mins = Math.ceil((midnight - now) / 60000);
+    return `New daily word in ${Math.floor(mins / 60)}h ${mins % 60}m.`;
+  }
+  setInterval(() => {
+    const c = $("countdown");
+    if (c) c.textContent = nextDailyIn();
+    // roll over to the new daily word if the page is left open past midnight
+    if (store.mode === "daily" && gameId !== "daily-" + dayNumber() && !busy) startGame();
+  }, 30000);
+
+  function playPractice() {
+    store.mode = "practice";
+    store.practice = null;
+    if ($("statsDialog").open) $("statsDialog").close();
+    toastEl.classList.remove("show");
+    startGame();
+    toast("Practice mode — unlimited words");
+  }
+
   // ---------- hint (shown before the final guess) ----------
   const HINT_AFTER = ROWS - 1;
   function updateHint() {
     const el = $("hint");
-    if (done || guesses.length < HINT_AFTER) { el.innerHTML = ""; return; }
+    if (done) {
+      el.innerHTML = store.mode === "daily"
+        ? `<span id="countdown">${nextDailyIn()}</span> <button class="link-btn" data-action="keep-playing">Keep playing →</button>`
+        : `<button class="link-btn" data-action="new-word">Next word →</button>`;
+      return;
+    }
+    if (guesses.length < HINT_AFTER) { el.innerHTML = ""; return; }
     // reveal the first position the player hasn't already got green
     let pos = 0;
     while (pos < COLS && guesses.some((g) => g[pos] === answer[pos])) pos++;
@@ -209,11 +245,16 @@
     const g = store.games[gameId];
     g.done = true;
     g.won = won;
-    const s = store.stats;
+    const s = modeStats();
     s.played++;
     if (won) {
       s.wins++;
-      s.streak++;
+      if (store.mode === "daily") {
+        // a daily streak only continues if yesterday's word was also solved
+        const n = dayNumber();
+        s.streak = s.lastWinDay === n - 1 ? s.streak + 1 : 1;
+        s.lastWinDay = n;
+      } else s.streak++;
       s.maxStreak = Math.max(s.maxStreak, s.streak);
       s.dist[guesses.length - 1]++;
       const praise = ["Genius!", "Brilliant!", "Impressive!", "Splendid!", "Great!", "Phew!"];
@@ -230,7 +271,11 @@
 
   // ---------- stats ----------
   function showStats() {
-    const s = store.stats;
+    const s = modeStats();
+    $("statsTitle").textContent = store.mode === "daily" ? "Daily statistics" : "Practice statistics";
+    // daily streak is broken if the last solved daily was before yesterday
+    const n = dayNumber();
+    if (store.mode === "daily" && s.lastWinDay !== undefined && s.lastWinDay < n - 1) s.streak = 0;
     $("sPlayed").textContent = s.played;
     $("sWin").textContent = s.played ? Math.round((s.wins / s.played) * 100) : 0;
     $("sStreak").textContent = s.streak;
@@ -242,6 +287,9 @@
       return `<div class="dist-row"><span>${i + 1}</span><div class="dist-bar${cur}" style="width:${Math.max(7, (n / max) * 100)}%">${n}</div></div>`;
     }).join("");
     $("shareBtn").style.display = done ? "" : "none";
+    const nb = $("newBtn");
+    nb.style.display = done || store.mode === "practice" ? "" : "none";
+    nb.textContent = store.mode === "daily" ? "Keep playing" : "New word";
     $("statsDialog").showModal();
   }
 
@@ -272,12 +320,11 @@
     startGame();
     toast(store.mode === "daily" ? "Daily word" : "Practice mode");
   };
-  $("newBtn").onclick = () => {
-    store.practice = null;
-    $("statsDialog").close();
-    toastEl.classList.remove("show");
-    startGame();
-  };
+  $("newBtn").onclick = playPractice;
+  $("hint").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-action]");
+    if (b) playPractice();
+  });
   $("shareBtn").onclick = async () => {
     const text = shareText();
     try { await navigator.clipboard.writeText(text); toast("Copied to clipboard"); }

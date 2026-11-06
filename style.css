@@ -100,6 +100,18 @@ main {
   color: var(--present);
 }
 .hint:empty { visibility: hidden; }
+.hint #countdown { color: var(--fg); font-weight: 500; opacity: 0.8; }
+.link-btn {
+  margin-left: 6px;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 12px;
+  background: var(--correct);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
 .hint b {
   display: inline-block;
   min-width: 1.4em;
