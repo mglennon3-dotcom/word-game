@@ -1,6 +1,6 @@
 (() => {
   const ROWS = 6, COLS = 5;
-  const WORD_SET = new Set(WORDS);
+  const WORD_SET = new Set([...WORDS, ...(typeof GUESSES !== "undefined" ? GUESSES : [])]);
   const STORE_KEY = "fiveLetters.v1";
 
   const $ = (id) => document.getElementById(id);
