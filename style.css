@@ -92,6 +92,24 @@ main {
 .tile.absent  { background: var(--absent);  border-color: var(--absent); }
 .tile.win { animation: bounce 0.5s ease; }
 
+.hint {
+  min-height: 1.6em;
+  margin-top: 10px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--present);
+}
+.hint:empty { visibility: hidden; }
+.hint b {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--correct);
+  color: #fff;
+  text-transform: uppercase;
+}
+
 .keyboard { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 .kb-row { display: flex; gap: 6px; justify-content: center; }
 .key {

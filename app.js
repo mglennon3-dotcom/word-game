@@ -55,6 +55,20 @@
     renderBoard();
     renderKeyboard();
     guesses.forEach((g, r) => paintRow(r, g, false));
+    updateHint();
+  }
+
+  // ---------- hint (shown before the final guess) ----------
+  const HINT_AFTER = ROWS - 1;
+  function updateHint() {
+    const el = $("hint");
+    if (done || guesses.length < HINT_AFTER) { el.innerHTML = ""; return; }
+    // reveal the first position the player hasn't already got green
+    let pos = 0;
+    while (pos < COLS && guesses.some((g) => g[pos] === answer[pos])) pos++;
+    if (pos === COLS) pos = 0;
+    const ordinal = ["1st", "2nd", "3rd", "4th", "5th"][pos];
+    el.innerHTML = `Hint: the ${ordinal} letter is <b>${answer[pos]}</b>`;
   }
 
   // ---------- scoring ----------
@@ -186,6 +200,8 @@
 
     const won = word === answer;
     if (won || guesses.length === ROWS) finish(won);
+    updateHint();
+    if (!done && guesses.length === HINT_AFTER) toast("Last try — here's a hint!", 2000);
   }
 
   function finish(won) {
@@ -235,7 +251,8 @@
     const grid = g.guesses.map((w) =>
       score(w, answer).map((s) => (s === "correct" ? "🟩" : s === "present" ? "🟨" : "⬛")).join("")
     ).join("\n");
-    return `${label} ${g.won ? g.guesses.length : "X"}/${ROWS}\n\n${grid}`;
+    const hinted = g.guesses.length >= ROWS ? " 💡" : "";
+    return `${label} ${g.won ? g.guesses.length : "X"}/${ROWS}${hinted}\n\n${grid}`;
   }
 
   // ---------- events ----------
