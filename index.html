@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Five Letters</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <button id="modeBtn" class="icon-btn" title="Switch mode">Daily</button>
+    <h1>Five Letters</h1>
+    <button id="statsBtn" class="icon-btn" title="Statistics">Stats</button>
+  </header>
+
+  <main>
+    <div id="toast" class="toast" aria-live="polite"></div>
+    <div id="board" class="board"></div>
+    <div id="keyboard" class="keyboard"></div>
+  </main>
+
+  <dialog id="statsDialog">
+    <h2>Statistics</h2>
+    <div class="stats-row">
+      <div><span id="sPlayed">0</span><small>Played</small></div>
+      <div><span id="sWin">0</span><small>Win %</small></div>
+      <div><span id="sStreak">0</span><small>Streak</small></div>
+      <div><span id="sMax">0</span><small>Max streak</small></div>
+    </div>
+    <h3>Guess distribution</h3>
+    <div id="dist"></div>
+    <div class="dialog-actions">
+      <button id="shareBtn">Share</button>
+      <button id="newBtn">New word</button>
+      <button id="closeBtn">Close</button>
+    </div>
+  </dialog>
+
+  <script src="words.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
